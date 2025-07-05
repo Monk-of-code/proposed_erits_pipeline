@@ -1,0 +1,9 @@
+geopandas
+shapely
+fiona
+pyproj
+rtree
+psycopg2-binary
+apache-sedona
+python-dotenv
+pyspark==3.5.1
