@@ -4,7 +4,7 @@ from pathlib import Path
 import geopandas as gpd
 from dotenv import load_dotenv
 
-from Geopandax.Utilities  import UtilDB
+from Geopandax.Utilities import UtilDB
 
 # Configure logging
 logger = logging.getLogger(__name__)

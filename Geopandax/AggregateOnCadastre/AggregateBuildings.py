@@ -1,78 +1,89 @@
 from datetime import datetime
+from dotenv import load_dotenv
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-import logging
 import geopandas as gpd
-from pyspark.sql import SparkSession
-from sedona.register import SedonaRegistrator
-from sedona.utils import SedonaKryoRegistrator
+import logging
 from Geopandax.Utilities import UtilDB
 
+# Setup logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
 config_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=config_path)
 
-# Initialize Spark with Sedona
-spark = SparkSession.builder \
-    .appName("BuildingAggregation") \
-    .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-    .config("spark.kryo.registrator", SedonaKryoRegistrator.getName) \
-    .config("spark.jars.packages", "org.apache.sedona:sedona-spark-shaded-3.0_2.12:1.4.1,org.apache.sedona:sedona-viz-3.0_2.12:1.4.1") \
-    .getOrCreate()
-
-SedonaRegistrator.registerAll(spark)
-
 def AggregateBuildings():
+    """Aggregates buildings to cadastre parcels and writes to temporary summary table"""
     try:
         schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
+        if not schema_name:
+            raise ValueError("PIPELINE_SILVER_SCHEMA environment variable not set")
 
-        gdfCadastre = UtilDB.readFromDB(
-            f"{schema_name}", "langata_cp_power_water_bld_permit_address")
+        logger.info("Starting building aggregation...")
 
-        now = datetime.now()
+        # Read base cadastre (lightweight, geometry only)
+        logger.info("Loading cadastre base geometry...")
+        gdfCadastre = UtilDB.readFromDB(schema_name,"langata_cp_cadastral_parcel")
 
+        # Read buildings data with timestamp filter
+        logger.info("Loading buildings data...")
         gdfBuildings = UtilDB.readFromDBWithTimestamp(
-            f"{schema_name}", "langata_buildings", "2025-02-04 00:00:00")
+            schema_name, "langata_buildings", "2025-02-04 00:00:00"
+        )
 
         if gdfBuildings.empty:
-            print("No new building data found.")
+            logger.warning("No buildings found - writing empty summary")
+            empty_summary = gpd.GeoDataFrame(columns=['index_right', 'building_count'])
+            UtilDB.WriteToDB(empty_summary, "tmp_building_summary", "AggregateBuildings", if_exists="replace")
             return
 
-        print(f'Number of buildings loaded: {gdfBuildings.shape[0]}')
-        print(f'{gdfBuildings.head(2)}')
+        logger.info(f"Loaded {len(gdfBuildings)} buildings")
 
-        joined_gdf = gpd.sjoin(gdfBuildings, gdfCadastre, how='inner',
-                               predicate='intersects')
+        # Perform spatial join
+        logger.info("Performing spatial join...")
+        joined_gdf = gpd.sjoin(
+            gdfBuildings, 
+            gdfCadastre, 
+            how='inner', 
+            predicate='intersects'
+        )
+        logger.info(f"Found {len(joined_gdf)} building-cadastre intersections")
 
-        print(f'joined_gdf: {joined_gdf.shape[0]}')
-
+        # Aggregate by cadastre polygon (directly naming the column)
+        logger.info("Aggregating buildings by parcel...")
         summary = (
             joined_gdf.groupby("index_right")
-            .agg(point_count=("index_right", "count"))
+            .agg(building_count=("index_right", "count"))  # Direct column naming
             .reset_index()
         )
 
-        gdfCadastre_with_summary = gdfCadastre.merge(
+        # Convert to GeoDataFrame by merging with cadastre geometries
+        summary = gdfCadastre[['geom']].merge(
             summary,
             left_index=True,
             right_on="index_right",
-            how="left"
+            how="right"
         )
 
-        gdfCadastre_with_summary.drop(columns=["index_right"], inplace=True)
-        gdfCadastre_with_summary.rename(
-            columns={"point_count": "building_count"}, inplace=True)
+        # Fill NA values (for parcels with no buildings)
+        summary['building_count'] = summary['building_count'].fillna(0).astype(int)
 
-        gdfCadastre_with_summary.reset_index(drop=True, inplace=True)
+        logger.info(f"Processed {len(summary)} parcels with buildings")
 
-        print(f'Buildings count: {gdfBuildings.shape[0]}')
+        # Write to TEMPORARY table
+        logger.info("Writing to temporary building summary table...")
+        UtilDB.WriteToDB(
+            summary,  # GeoDataFrame with geometry
+            "tmp_building_summary",  # Temporary table name
+            "AggregateBuildings",
+             {"geometry":"geom"} 
+        )
 
-        UtilDB.WriteToDB(gdfCadastre_with_summary,
-                         "langata_cp_power_water_bld_permit_address", "AggregateBuildings", "")
+        logger.info(f"Building aggregation complete. Total buildings: {len(gdfBuildings)}")
 
     except Exception as e:
-        print(f"Error in AggregateBuildings: {e}")
+        logger.error(f"Building aggregation failed: {str(e)}", exc_info=True)
+        raise

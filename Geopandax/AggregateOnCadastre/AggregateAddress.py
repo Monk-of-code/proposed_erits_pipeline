@@ -1,54 +1,78 @@
 import os
-import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import geopandas as gpd
+import logging
 from Geopandax.Utilities import UtilDB
 
 # Setup logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Load .env
+# Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
 config_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=config_path)
 
-
 def AggregateAddressPoints():
-    schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
+    """Aggregates address points to cadastre parcels and writes to temporary summary table"""
+    try:
+        schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
+        if not schema_name:
+            raise ValueError("PIPELINE_SILVER_SCHEMA environment variable not set")
 
-    # Read cadastre + address data
-    gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_power_water_bld_permit_address")
-    gdfAddress = UtilDB.readFromDB(schema_name, "langata_address_locations")
+        logger.info("Starting address point aggregation...")
 
-    # Spatial join
-    joined_gdf = gpd.sjoin(gdfAddress, gdfCadastre, how='inner', predicate='intersects')
+        # Read base cadastre (
+        logger.info("Loading cadastre")
+        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel")
 
-    # Group and summarize
-    summary = (
-        joined_gdf.groupby("index_right")
-        .agg(point_count=("index_right", "count"))
-        .reset_index()
-    )
+        # Read address data
+        logger.info("Loading address locations...")
+        gdfAddress = UtilDB.readFromDB(schema_name, "langata_address_locations")
 
-    # Merge results
-    gdfCadastre_with_summary = gdfCadastre.merge(
-        summary,
-        left_index=True,
-        right_on="index_right",
-        how="left"
-    ).drop(columns=["index_right"]).rename(columns={"point_count": "address_count"})
+        if gdfAddress.empty:
+            logger.warning("No address points found - writing empty summary")
+            empty_summary = gpd.GeoDataFrame(columns=['index_right', 'address_count'])
+            UtilDB.WriteToDB(empty_summary, "tmp_address_summary", "AggregateAddressPoints", if_exists="replace")
+            return
 
-    gdfCadastre_with_summary.reset_index(drop=True, inplace=True)
+        # Perform spatial join
+        logger.info(f"Performing spatial join on {len(gdfAddress)} addresses...")
+        joined_gdf = gpd.sjoin(
+            gdfAddress, gdfCadastre,
+            how='inner', predicate='intersects'
+        )
 
-    print(f'Address count: {gdfAddress.shape[0]}')
-    print(f'Cadastre with Summary(AddressPoints): {gdfCadastre_with_summary.shape[0]}')
+        # Aggregate by cadastre polygon (directly naming the column)
+        logger.info("Aggregating addresses by parcel...")
+        summary = (
+            joined_gdf.groupby("index_right")
+            .agg(address_count=("index_right", "count"))  # Direct column naming
+            .reset_index()
+        )
 
-    # Write results to DB
-    UtilDB.WriteToDB(
-        gdfCadastre_with_summary,
-        "langata_cp_power_water_bld_permit_address",
-        "AggregateAddressPoints",
-        ""
-    )
+        # Convert to GeoDataFrame by merging with cadastre geometries
+        summary = gdfCadastre[['geom']].merge(
+            summary,
+            left_index=True,
+            right_on="index_right",
+            how="right"
+        )
+
+        logger.info(f"Found {len(summary)} parcels with addresses")
+
+        # Save result to TEMPORARY table
+        logger.info("Writing to temporary address summary table...")
+        UtilDB.WriteToDB(
+            summary,  # Now a proper GeoDataFrame
+            "tmp_address_summary",  # Temporary table name
+            "AggregateAddressPoints",
+            {"geometry":"geom"}  # Overwrite existing
+        )
+
+        logger.info(f"Address aggregation complete. Total addresses: {gdfAddress.shape[0]}")
+
+    except Exception as e:
+        logger.error(f"Address aggregation failed: {str(e)}", exc_info=True)
+        raise

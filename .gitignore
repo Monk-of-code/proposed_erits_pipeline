@@ -8,7 +8,7 @@ __pycache__/
 .env
 .venv/
 venv/
-
+.env.secrets
 # IDEs and editors
 .vscode/
 .idea/

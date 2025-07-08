@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 import geopandas as gpd
 from Geopandax.Utilities import UtilDB
 
-
 # Configure logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,44 +15,72 @@ config_path = BASE_DIR / '.env'
 load_dotenv(dotenv_path=config_path)
 
 def AggregateWater():
-    schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
+    """Aggregates water meters to cadastre parcels and writes to temporary summary table"""
+    try:
+        schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
+        if not schema_name:
+            raise ValueError("PIPELINE_SILVER_SCHEMA environment variable not set")
 
-    # Read cadastre data
-    gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_power_water_bld_permit_address")
+        logger.info("Starting water meter aggregation...")
 
-    # Read water meter points
-    gdfWaterMeters = UtilDB.readFromDB(schema_name, "langata_water_meters")
+        # Read base cadastre (lightweight, geometry only)
+        logger.info("Loading cadastre base geometry...")
+        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel")
 
-    # Spatial join
-    joined_gdf = gpd.sjoin(
-        gdfWaterMeters, gdfCadastre,
-        how='inner', predicate='intersects'
-    )
+        # Read water meter data
+        logger.info("Loading water meter data...")
+        gdfWater = UtilDB.readFromDB(schema_name, "langata_water_meters")
 
-    # Summarize point count per polygon
-    summary = (
-        joined_gdf.groupby("index_right")
-        .agg(point_count=("index_right", "count"))
-        .reset_index()
-    )
+        if gdfWater.empty:
+            logger.warning("No water meters found - writing empty summary")
+            empty_summary = gpd.GeoDataFrame(columns=['index_right', 'water_count'])
+            UtilDB.WriteToDB(empty_summary, "tmp_water_summary", "AggregateWater", if_exists="replace")
+            return
 
-    # Merge counts into cadastre polygons
-    gdfCadastre_with_summary = gdfCadastre.merge(
-        summary,
-        left_index=True,
-        right_on="index_right",
-        how="left"
-    ).drop(columns=["index_right"])
+        logger.info(f"Loaded {len(gdfWater)} water meters")
 
-    gdfCadastre_with_summary.rename(columns={"point_count": "water_count"}, inplace=True)
-    gdfCadastre_with_summary.reset_index(drop=True, inplace=True)
+        # Perform spatial join
+        logger.info("Performing spatial join...")
+        joined_gdf = gpd.sjoin(
+            gdfWater,
+            gdfCadastre,
+            how='inner',
+            predicate='intersects'
+        )
+        logger.info(f"Found {len(joined_gdf)} water-cadastre intersections")
 
-    print(f'Water Meters count: {gdfWaterMeters.shape[0]}')
+        # Aggregate by cadastre polygon (directly naming the column)
+        logger.info("Aggregating water meters by parcel...")
+        summary = (
+            joined_gdf.groupby("index_right")
+            .agg(water_count=("index_right", "count"))  # Direct column naming
+            .reset_index()
+        )
 
-    # Write result to DB
-    UtilDB.WriteToDB(
-        gdfCadastre_with_summary,
-        "langata_cp_power_water_bld_permit_address",
-        "AggregateWater",
-        ""
-    )
+        # Convert to GeoDataFrame by merging with cadastre geometries
+        summary = gdfCadastre[['geom']].merge(
+            summary,
+            left_index=True,
+            right_on="index_right",
+            how="right"
+        )
+
+        # Fill NA values (for parcels with no water meters)
+        summary['water_count'] = summary['water_count'].fillna(0).astype(int)
+
+        logger.info(f"Processed {len(summary)} parcels with water meters")
+
+        # Write to TEMPORARY table
+        logger.info("Writing to temporary water summary table...")
+        UtilDB.WriteToDB(
+            summary,  # GeoDataFrame with geometry
+            "tmp_water_summary",  # Temporary table name
+            "AggregateWater",
+            {"geometry":"geom"}
+        )
+
+        logger.info(f"Water aggregation complete. Total meters: {len(gdfWater)}")
+
+    except Exception as e:
+        logger.error(f"Water meter aggregation failed: {str(e)}", exc_info=True)
+        raise

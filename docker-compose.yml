@@ -3,7 +3,9 @@ x-airflow-common:
   build:
     context: .
     dockerfile: Dockerfile
-  env_file: /data/erits-pipeline/.env
+  env_file: 
+    - /data/erits-pipeline/.env
+    - /data/erits-pipeline/.env.secrets
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -16,10 +18,11 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     PYTHONPATH: /opt/airflow/erits-pipeline
     JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-    environment:
+    AIRFLOW_CONN_POSTGRES_ERITS: "postgres://postgres:6390@192.168.100.26:5433/erits"
   
   volumes:
     - /data/erits-pipeline:/opt/airflow/erits-pipeline
+    - /data/erits-pipeline/data:/opt/airflow/data
     - /data/erits-pipeline/Geopandax/airflow/dags:/opt/airflow/dags/erits_dags
     - /data/repos/weather_data_project/airflow/dags:/opt/airflow/dags/weather_dags
     - /data/repos/weather_data_project/api_requests:/opt/airflow/api_requests
