@@ -25,7 +25,7 @@ def AggregateWater():
 
         # Read base cadastre (lightweight, geometry only)
         logger.info("Loading cadastre base geometry...")
-        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel")
+        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel_uuid")
 
         # Read water meter data
         logger.info("Loading water meter data...")
@@ -33,7 +33,7 @@ def AggregateWater():
 
         if gdfWater.empty:
             logger.warning("No water meters found - writing empty summary")
-            empty_summary = gpd.GeoDataFrame(columns=['index_right', 'water_count'])
+            empty_summary = gpd.GeoDataFrame(columns=['uuid','geom', 'water_count'])
             UtilDB.WriteToDB(empty_summary, "tmp_water_summary", "AggregateWater", if_exists="replace")
             return
 
@@ -52,16 +52,15 @@ def AggregateWater():
         # Aggregate by cadastre polygon (directly naming the column)
         logger.info("Aggregating water meters by parcel...")
         summary = (
-            joined_gdf.groupby("index_right")
-            .agg(water_count=("index_right", "count"))  # Direct column naming
-            .reset_index()
+            joined_gdf.groupby("uuid")
+            .size()  
+            .reset_index(name='water_count')
         )
 
         # Convert to GeoDataFrame by merging with cadastre geometries
-        summary = gdfCadastre[['geom']].merge(
+        summary = gdfCadastre[['uuid','geom']].merge(
             summary,
-            left_index=True,
-            right_on="index_right",
+            on='uuid',
             how="right"
         )
 
@@ -74,7 +73,7 @@ def AggregateWater():
         logger.info("Writing to temporary water summary table...")
         UtilDB.WriteToDB(
             summary,  # GeoDataFrame with geometry
-            "tmp_water_summary",  # Temporary table name
+            "water_summary",  # Temporary table name
             "AggregateWater",
             {"geometry":"geom"}
         )

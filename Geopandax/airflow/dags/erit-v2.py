@@ -1,3 +1,4 @@
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
@@ -35,6 +36,7 @@ else:
         AggregateDevelopmentControl, AggregateAddress, ComputeFusionField,Joinsummaries
     )
     from Geopandax.CadastreUUID import CadastreUUIDMain
+    from Geopandax.CadastreUUID import AddAdressDataToCadastre
     from Geopandax.Interest import InterestMain, MoveToGold
 
 # === Utility Functions ===
@@ -46,6 +48,7 @@ def ensure_parquet_dir():
 
 # === Task Functions ===
 def test_postgres_connection():
+    
     try:
         hook = PostgresHook(postgres_conn_id="erits_postgres")
         conn = hook.get_conn()
@@ -150,6 +153,12 @@ with DAG(
         python_callable=initialize
     )
 
+    add_address_name = PythonOperator(
+    task_id="add_property_name_to_cadastre",
+    python_callable=AddAdressDataToCadastre.AddAddressPropertyNameToCadastre
+    )
+
+
     t_cadastre = PythonOperator(task_id="prep_cadastre", python_callable=prep_cadastre)
     t_water = PythonOperator(task_id="prep_water", python_callable=prep_water)
     t_dev = PythonOperator(task_id="prep_development", python_callable=prep_development)
@@ -175,15 +184,26 @@ with DAG(
     # === DAG Dependencies ===
     test_connection >> init
 
-    init >> [t_cadastre, t_water, t_dev, t_address, t_buildings, t_power]
+# Preparation
+    init >> [t_cadastre, t_power, t_water, t_buildings, t_dev, t_address]
 
-    [t_cadastre, t_power] >> a_power
-    [t_cadastre, t_water] >> a_water
-    [t_cadastre, t_buildings] >> a_buildings
-    [t_cadastre, t_address] >> a_address
-    [t_cadastre, t_dev] >> a_dev
+# UUID generation AFTER cadastre + other features are prepared
+    [t_cadastre, t_power, t_water, t_buildings, t_dev, t_address] >> uuid
 
-    [a_power, a_water, a_buildings, a_address, a_dev] >> join_summaries>>fusion >> uuid >> interest >> [move1, move2]
+# Aggregation tasks AFTER uuid
+    uuid >> [a_power, a_water, a_buildings, a_address, a_dev]
+
+# Join summaries AFTER aggregations
+    [a_power, a_water, a_buildings, a_address, a_dev] >> join_summaries
+
+# Add property name to cadastre AFTER summaries
+    join_summaries >> add_address_name
+
+# Compute fusion AFTER adding property name
+    add_address_name >> fusion
+
+# Join interest and move
+    fusion >> interest >> [move1, move2]
 
     # Attach failure callback to all tasks
     for task in dag.tasks:

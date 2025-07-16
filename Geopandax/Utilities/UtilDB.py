@@ -44,12 +44,58 @@ def create_db_engine(async_=False):
     )
 
 
-def WriteToDB(dataFrame, outputTable, functionName, toPostGISOption):
+#def WriteToDB(dataFrame, outputTable, functionName, toPostGISOption):
     engine = create_db_engine()
     schema = get_db_config()['silver_schema']
     if_exists = 'append' if toPostGISOption else 'replace'
     dataFrame.to_postgis(name=outputTable, schema=schema, con=engine, if_exists=if_exists)
     print(f'{outputTable} ({functionName}) Records written to DB: {dataFrame.shape[0]}')
+
+from Geopandax.Utilities.UtilDB import create_db_engine, get_db_config
+from sqlalchemy import inspect, text
+import pandas as pd
+
+def WriteToDB(dataFrame, outputTable, functionName, toPostGISOption):
+    engine = create_db_engine()
+    schema = get_db_config()['silver_schema']
+    if_exists = 'append' if toPostGISOption else 'replace'
+
+    inspector = inspect(engine)
+    table_exists = inspector.has_table(outputTable, schema=schema)
+
+    if table_exists and toPostGISOption:
+        existing_columns = [col['name'] for col in inspector.get_columns(outputTable, schema=schema)]
+        new_columns = [col for col in dataFrame.columns if col not in existing_columns and col != dataFrame.geometry.name]
+
+        with engine.begin() as conn:
+            for col in new_columns:
+                col_type = _map_dtype(dataFrame[col])
+                print(f'[ALTER] Adding column "{col}" as {col_type}')
+                alter_stmt = text(f'ALTER TABLE "{schema}"."{outputTable}" ADD COLUMN "{col}" {col_type};')
+                conn.execute(alter_stmt)
+
+    # Write to PostGIS
+    dataFrame.to_postgis(
+        name=outputTable,
+        schema=schema,
+        con=engine,
+        if_exists=if_exists,
+        index=False
+    )
+    print(f'{outputTable} ({functionName}) Records written: {dataFrame.shape[0]}')
+
+
+def _map_dtype(series: pd.Series) -> str:
+    if pd.api.types.is_integer_dtype(series):
+        return 'INTEGER'
+    elif pd.api.types.is_float_dtype(series):
+        return 'DOUBLE PRECISION'
+    elif pd.api.types.is_bool_dtype(series):
+        return 'BOOLEAN'
+    elif pd.api.types.is_datetime64_any_dtype(series):
+        return 'TIMESTAMP'
+    else:
+        return 'TEXT'
 
 
 def WriteNonSpatialToDB(dataFrame, outputTable, functionName):

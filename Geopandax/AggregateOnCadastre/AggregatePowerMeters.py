@@ -26,7 +26,7 @@ def AggregatePower():
 
         # Read base cadastre (lightweight, geometry only)
         logger.info("Loading cadastre base geometry...")
-        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel")
+        gdfCadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel_uuid")
 
         # Read power customers data
         logger.info("Loading power customers data...")
@@ -34,7 +34,7 @@ def AggregatePower():
 
         if gdfPower.empty:
             logger.warning("No power customers found - writing empty summary")
-            empty_summary = gpd.GeoDataFrame(columns=['index_right', 'power_count'])
+            empty_summary = gpd.GeoDataFrame(columns=['uuid','geom','power_count'])
             UtilDB.WriteToDB(empty_summary, "tmp_power_summary", "AggregatePower", if_exists="replace")
             return
 
@@ -48,16 +48,15 @@ def AggregatePower():
         # Aggregate by cadastre polygon (directly naming the column)
         logger.info("Aggregating power customers by parcel...")
         summary = (
-            joined_gdf.groupby("index_right")
-            .agg(power_count=("index_right", "count"))  # Direct column naming
-            .reset_index()
+            joined_gdf.groupby("uuid")
+            .size()  
+            .reset_index(name='power_count')
         )
 
         # Convert to GeoDataFrame by merging with cadastre geometries
-        summary = gdfCadastre[['geom']].merge(
+        summary = gdfCadastre[['uuid','geom']].merge(
             summary,
-            left_index=True,
-            right_on="index_right",
+            on='uuid',
             how="right"
         )
 
@@ -67,7 +66,7 @@ def AggregatePower():
         logger.info("Writing to temporary power summary table...")
         UtilDB.WriteToDB(
             summary,  # Now a proper GeoDataFrame
-            "tmp_power_summary",  # Temporary table name
+            "power_summary",  # Temporary table name
             "AggregatePower",
             {"geometry":"geom"}
         )

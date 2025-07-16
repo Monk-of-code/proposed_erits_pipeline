@@ -25,7 +25,7 @@ def AddMeasureFusionField():
 
         logger.info("Loading cadastre data...")
         gdf_cadastre = UtilDB.readFromDB(
-            f"{schema_name}", "langata_cp_power_water_bld_permit_address")
+            f"{schema_name}", "langata_cp_power_water_bld_permit_address_uuid")
 
         # Initialize fusion field (keeping your original logic)
         gdf_cadastre["fusion"] = 0
@@ -57,7 +57,7 @@ def AddMeasureFusionField():
         # Write to DB (maintaining your original parameters)
         UtilDB.WriteToDB(
             gdf_cadastre, 
-            "langata_cp_power_water_bld_permit_address", 
+            "langata_cp_power_water_bld_permit_address_uuid", 
             "AddMeasureFusionField", 
             ""
         )

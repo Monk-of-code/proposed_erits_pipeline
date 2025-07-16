@@ -22,7 +22,7 @@ schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
 
 def initialize():
     # Get cadastre dataset from DB
-    cadastre = UtilDB.readFromDB(schema_name, "langata_cp_power_water_bld_permit_address")
+    cadastre = UtilDB.readFromDB(schema_name, "langata_cp_cadastral_parcel")
     return cadastre
 
 

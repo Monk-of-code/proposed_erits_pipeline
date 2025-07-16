@@ -19,10 +19,12 @@ schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
 
 def AddUUIDToCadastre(cadastre):
     cadastre["uuid"] = cadastre["parcel_number"].fillna(cadastre["lr_number"])
-    cadastre["uuid"] = cadastre["uuid"].fillna(pd.Series(cadastre.index + 1, index=cadastre.index))
+    cadastre["uuid"] = cadastre["uuid"].fillna(pd.Series("uuid_" + (cadastre.index + 1).astype(str), index=cadastre.index))
+    cadastre["uuid"] = cadastre["uuid"].astype(str).str.strip()
+    cadastre_unique = cadastre.drop_duplicates(subset=["uuid"], keep="first")
     UtilDB.WriteToDB(
-        cadastre, "langata_cp_power_water_bld_permit_address_uuid", "AddUUIDToCadastre", "")
-    return cadastre
+        cadastre_unique, "langata_cp_cadastral_parcel_uuid", "AddUUIDToCadastre", "")
+    return cadastre_unique
 
 def _process_layer_with_uuid(cadastre, layer_name, output_table, function_name):
     gdf = UtilDB.readFromDB(schema_name, layer_name)
