@@ -89,9 +89,11 @@ def AggregateLandRates(cadastre):
     gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
     print(f'Cadastre count before AggregateLandRates: {gdf_cadastre.shape[0]}')
 
+    if 'rates_count' in gdf_cadastre.columns:
+        gdf_cadastre = gdf_cadastre.drop(columns=['rates_count'])
+
     gdf_attributes = UtilDB.readNonSpatialFromDB(SCHEMA_BRONZE, "bd_land_rate_data")
     gdf_attributes = gdf_attributes.rename(columns={'uuid_derived': 'uuid'})
-
     feature_counts = gdf_attributes['uuid'].value_counts().reset_index()
     feature_counts.columns = ['uuid', 'rates_count']
 
@@ -105,6 +107,9 @@ def AggregateTradeLicense(cadastre):
     gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
 
     gdf_attributes = UtilDB.readFromDB(SCHEMA_BRONZE, "trade_license")
+
+    if 'trade_count' in gdf_cadastre.columns:
+        gdf_cadastre = gdf_cadastre.drop(columns=['trade_count'])
 
     feature_counts = gdf_attributes['uuid'].value_counts().reset_index()
     feature_counts.columns = ['uuid', 'trade_count']

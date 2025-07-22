@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     libgeos-dev \
     libproj-dev \
+    proj-bin\
     libgl1 \
     openjdk-17-jre-headless \
     ca-certificates \
