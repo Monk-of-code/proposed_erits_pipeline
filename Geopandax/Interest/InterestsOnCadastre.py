@@ -18,7 +18,7 @@ SCHEMA_BRONZE = os.getenv('PIPELINE_BRONZE_SCHEMA')
 
 
 def PotentialInterestToCadastre(gdf_cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
     print(f'Cadastre count before PotentialInterestToCadastre: {gdf_cadastre.shape[0]}')
 
     gdf_attributes = UtilDB.readNonSpatialFromDB(SCHEMA_BRONZE, "bd_land_rate_data")
@@ -58,7 +58,7 @@ def PotentialInterestToCadastre(gdf_cadastre):
 
 
 def JoinFieldsToCadastre(gdf_cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
     print(f'Cadastre count before JoinFieldsToCadastre: {gdf_cadastre.shape[0]}')
 
     gdf_attributes = UtilDB.readNonSpatialFromDB(SCHEMA_BRONZE, "bd_land_rate_data")
@@ -81,12 +81,12 @@ def JoinFieldsToCadastre(gdf_cadastre):
     }, inplace=True)
 
     gdf_joined_deep['owner'] = ""
-    UtilDB.WriteToDB(gdf_joined_deep, "langata_cp_power_water_bld_permit_address_uuid", "JoinFieldsToCadastre", "")
+    UtilDB.WriteToDB(gdf_joined_deep, "langata_cp_power_water_bld_permits_address_agg_uuid", "JoinFieldsToCadastre", "")
     print(f'Cadastre count AFTER JoinFieldsToCadastre: {gdf_joined_deep.shape[0]}')
 
 
 def AggregateLandRates(cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
     print(f'Cadastre count before AggregateLandRates: {gdf_cadastre.shape[0]}')
 
     gdf_attributes = UtilDB.readNonSpatialFromDB(SCHEMA_BRONZE, "bd_land_rate_data")
@@ -98,11 +98,11 @@ def AggregateLandRates(cadastre):
     gdf_cadastre = gdf_cadastre.merge(feature_counts, on='uuid', how='left')
     gdf_cadastre['rates_count'] = gdf_cadastre['rates_count'].fillna(0).astype(int)
 
-    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permit_address_uuid", "AggregateLandRates", "")
+    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permits_address_agg_uuid", "AggregateLandRates", "")
 
 
 def AggregateTradeLicense(cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
 
     gdf_attributes = UtilDB.readFromDB(SCHEMA_BRONZE, "trade_license")
 
@@ -112,21 +112,21 @@ def AggregateTradeLicense(cadastre):
     gdf_cadastre = gdf_cadastre.merge(feature_counts, on='uuid', how='left')
     gdf_cadastre['trade_count'] = gdf_cadastre['trade_count'].fillna(0).astype(int)
 
-    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permit_address_uuid", "AggregateTradeLicense", "")
+    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permits_address_agg_uuid", "AggregateTradeLicense", "")
 
 
 def CadastreDropDuplicates(cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
 
     gdf_cadastre = gdf_cadastre.drop_duplicates(subset='uuid').copy(deep=True)
 
-    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permit_address_uuid_unique", "CadastreDropDuplicates", "")
+    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permits_address_agg_uuid", "CadastreDropDuplicates", "")
 
     print(f'uuid uniqueness: {gdf_cadastre["uuid"].is_unique}')
 
 
 def DropNonRequiredFields(cadastre):
-    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permit_address_uuid_unique")
+    gdf_cadastre = UtilDB.readFromDB(SCHEMA_SILVER, "langata_cp_power_water_bld_permits_address_agg_uuid")
 
     columns_to_keep = [
         'fid', 'geom', 'fr_number', 'rim_name', 'lr_number', 'parcel_number', 'sheet_number', 'stated_area',
@@ -135,7 +135,8 @@ def DropNonRequiredFields(cadastre):
         'old_parcel', 'owner', 'current_status', 'shape_leng', 'shape_area', 'dp_number', 'power_count',
         'water_count', 'building_count', 'permit_count', 'address_count', 'uuid', 'BL_LRNumber', 'BL_LR Amount',
         'BL_LR InvoiceNo', 'BL_CustomerNo', 'BL_CustomerNo1', 'BL_KRAPIN', 'BL_CustomerID', 'BL_PhoneNumber',
-        'BL_PropertyValue', 'BL_uuid_derived', 'fusion', 'propertyName', 'rates_count', 'trade_count'
+        'BL_PropertyValue', 'BL_uuid_derived', 'fusion', 'property_name_1', 'rates_count', 'trade_count',
+        'property_name_2','property_name_3'
     ]
      # Keep only columns that exist
     existing_columns = [col for col in columns_to_keep if col in gdf_cadastre.columns]
@@ -146,4 +147,4 @@ def DropNonRequiredFields(cadastre):
 
     gdf_cadastre = gdf_cadastre[existing_columns]
 
-    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permit_address_uuid_unique", "DropNonRequiredFields", "")
+    UtilDB.WriteToDB(gdf_cadastre, "langata_cp_power_water_bld_permits_address_agg_uuid", "DropNonRequiredFields", "")

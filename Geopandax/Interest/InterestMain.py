@@ -13,7 +13,7 @@ schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
 
 def initialize():
     cadastre = UtilDB.readFromDB(
-        f"{schema_name}", "langata_cp_power_water_bld_permit_address_uuid"
+        f"{schema_name}", "langata_cp_power_water_bld_permits_address_agg_uuid"
     )
     return cadastre
 

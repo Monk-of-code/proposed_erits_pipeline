@@ -4,6 +4,7 @@ import geopandas as gpd
 from dotenv import load_dotenv
 import logging
 from Geopandax.Utilities import UtilDB
+from collections import defaultdict
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ def AddAddressPropertyNameToCadastre():
     schema_name = os.getenv('PIPELINE_SILVER_SCHEMA')
 
     address = UtilDB.readFromDB(schema_name, "langata_address_locations")
-    gdfDataset = UtilDB.readFromDB(schema_name, "langata_cp_power_water_bld_permits_address_uuid")
+    gdfDataset = UtilDB.readFromDB(schema_name, "langata_cp_power_water_bld_permits_address_agg_uuid")
 
     logger.info(f"[AddAddressPropertyNameToCadastre] Loaded address ({len(address)}) and cadastre ({len(gdfDataset)})")
 
@@ -38,16 +39,23 @@ def AddAddressPropertyNameToCadastre():
     if 'propertyna' not in joined_gdf.columns:
         logger.warning("[AddAddressPropertyNameToCadastre] 'propertyna' column not found after join.")
         return
+    
+    grouped= (joined_gdf[['uuid','propertyna']].dropna().drop_duplicates().groupby('uuid')['propertyna'].apply(list).reset_index())
 
-    # Keep only relevant columns
-    columns_to_keep = list(set(initial_columns + ['propertyna']))
-    gdf_cleaned = joined_gdf[columns_to_keep]
+    max_names = 3
+    for i in range(max_names):
+        grouped[f'property_name_{i+1}'] = grouped['propertyna'].apply(lambda x: x[i] if i < len(x) else None)
 
-    # Final rename
-    gdf_cleaned = gdf_cleaned.rename(columns={'propertyna': "property_name"})
+# Drop the original list column
+    grouped = grouped.drop(columns=['propertyna'])
 
+#  Merge back with original dataset (keeping only one row per uuid)
+    deduped_gdf = gdfDataset.drop_duplicates(subset=['uuid'])
+    gdf_cleaned = deduped_gdf.merge(grouped, on='uuid', how='left')
+
+  
     logger.info(f"Final columns for write: {gdf_cleaned.columns.tolist()}")
 
     UtilDB.WriteToDB(gdf_cleaned,
-                     "langata_cp_power_water_bld_permit_address_uuid",
+                     "langata_cp_power_water_bld_permits_address_agg_uuid",
                      "AddAddressPropertyNameToCadastre",toPostGISOption=False)

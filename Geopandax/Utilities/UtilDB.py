@@ -200,3 +200,47 @@ def UpdateTableTimestamp(Table):
         print(f"Error updating {Table.__tablename__}: {e}")
     finally:
         session.close()
+
+
+def migrate_table(
+    source_schema: str,
+    source_table: str,
+    target_schema: str,
+    target_table: str,
+    drop_if_exists: bool = True,
+    postgis: bool = True
+):
+    engine = create_db_engine()
+
+    with engine.begin() as conn:
+        inspector = inspect(engine)
+
+        if drop_if_exists and inspector.has_table(target_table, schema=target_schema):
+            print(f"[INFO] Dropping existing table: {target_schema}.{target_table}")
+            conn.execute(text(f'DROP TABLE "{target_schema}"."{target_table}"'))
+
+        print(f"[INFO] Reading from source: {source_schema}.{source_table}")
+        sql = f'SELECT * FROM "{source_schema}"."{source_table}"'
+
+        if postgis:
+            try:
+                gdf = gpd.read_postgis(sql, conn, geom_col="geom")
+                print(f"[INFO] Read {len(gdf)} rows")
+            except Exception as e:
+                print(f"[ERROR] Failed to read PostGIS table: {e}")
+                return
+        else:
+            df = pd.read_sql(sql, conn)
+            print(f"[INFO] Read {len(df)} rows")
+
+        print(f"[INFO] Writing to target: {target_schema}.{target_table}")
+        try:
+            if postgis:
+                gdf.to_postgis(target_table, conn, schema=target_schema, if_exists="replace", index=False)
+            else:
+                df.to_sql(target_table, conn, schema=target_schema, if_exists="replace", index=False)
+        except Exception as e:
+            print(f"[ERROR] Failed to write table: {e}")
+            return
+
+    print(f"[DONE] Migrated: {source_schema}.{source_table} ➜ {target_schema}.{target_table}")

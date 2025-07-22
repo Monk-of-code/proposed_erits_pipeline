@@ -9,62 +9,67 @@ load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 # Schema name
 SCHEMA_SILVER = os.getenv('PIPELINE_SILVER_SCHEMA')
+SCHEMA_GOLD=os.getenv('PIPELINE_GOLD_SCHEMA')
 
 # --------------------- CADASTRE MOVERS --------------------- #
 
-async def MoveCadastreAsync():
+"""async def MoveCadastreAsync():
     field_mapping = _get_cadastre_field_mapping()
     await UtilDB.copy_from_table_a_to_table_b(
-        "langata_cp_power_water_bld_permit_address_uuid_unique",
+        "langata_cp_power_water_bld_permits_address_agg_uuid",
         "langata_cp_kplc_nwsc_bldg_permits_address",
-        SCHEMA_SILVER, field_mapping)
+        SCHEMA_SILVER, field_mapping) """
 
 
 def MoveCadastreSync():
-    field_mapping = _get_cadastre_field_mapping()
-    UtilDB.CopyFromTableAtoTableB(
-        "langata_cp_power_water_bld_permit_address_uuid_unique",
-        "langata_cp_kplc_nwsc_bldg_permits_address",
-        SCHEMA_SILVER, field_mapping)
+    UtilDB.migrate_table(
+        source_schema=SCHEMA_SILVER,
+        source_table='langata_cp_power_water_bld_permits_address_agg_uuid',
+        target_schema=SCHEMA_GOLD,
+        target_table='langata_cp_kplc_nwsc_bldg_permits_address_gold'
+    )
+
+
+def MoveWaterSync():
+    UtilDB.migrate_table(
+        source_schema=SCHEMA_SILVER,
+        source_table="langata_water_meters_with_nlims_link",
+        target_schema=SCHEMA_GOLD,
+        target_table="langata_water_meters_with_nlims_link_gold"
+        )
+
 
 
 # --------------------- POWER, WATER, DEVELOPMENT CONTROL --------------------- #
 
 def MovePowerSync():
-    field_mapping = _get_power_field_mapping()
-    UtilDB.CopyFromTableAtoTableB(
-        "langata_power_customers_with_nlims_link",
-        "langata_power_customers_v4_with_nlims_link",
-        SCHEMA_SILVER, field_mapping)
-
-
-def MoveWaterSync():
-    field_mapping = _get_water_field_mapping()
-    UtilDB.CopyFromTableAtoTableB(
-        "langata_water_meters_with_nlims_link",
-        "langata_water_meters_v4_with_nlims_link",
-        SCHEMA_SILVER, field_mapping)
-
+    UtilDB.migrate_table(
+        source_schema=SCHEMA_SILVER,
+        source_table="langata_power_customers_with_nlims_link",
+        target_schema=SCHEMA_GOLD,
+        target_table="langata_power_customers_with_nlims_link_gold"
+    )
 
 def MoveDevelopmentControlSync():
-    field_mapping = _get_dev_control_field_mapping()
-    UtilDB.CopyFromTableAtoTableB(
-        "langata_building_permits_with_nlims_link",
-        "building_permits_v4_with_nlims_link",
-        SCHEMA_SILVER, field_mapping)
+    UtilDB.migrate_table(
+        source_schema=SCHEMA_SILVER,
+        source_table="langata_building_permits_with_nlims_link",
+        target_schema=SCHEMA_GOLD,
+        target_table="langata_building_permits_with_nlims_link_gold",
+        )
 
-
+"""
 async def MoveDevelopmentControlAsync():
     field_mapping = _get_dev_control_field_mapping()
     await UtilDB.copy_from_table_a_to_table_b(
         "langata_building_permits_with_nlims_link",
         "building_permits_v4_with_nlims_link",
         SCHEMA_SILVER, field_mapping)
-
+"""
 
 # --------------------- FIELD MAPPINGS --------------------- #
 
-def _get_cadastre_field_mapping():
+"""def _get_cadastre_field_mapping():
     return {
         'geom': 'geom', 'fr_number': 'fr_number', 'rim_name': 'rim_name',
         'lr_number': 'lr_number', 'parcel_number': 'parcel_number', 'sheet_number': 'sheet_number',
@@ -80,8 +85,9 @@ def _get_cadastre_field_mapping():
         'BL_LRNumber': 'BL_LRNumber', 'BL_LR Amount': 'BL_LR Amount', 'BL_LR InvoiceNo': 'BL_LR InvoiceNo',
         'BL_CustomerNo': 'BL_CustomerNo', 'BL_CustomerNo1': 'BL_CustomerNo1', 'BL_KRAPIN': 'BL_KRAPIN',
         'BL_CustomerID': 'BL_CustomerID', 'BL_PhoneNumber': 'BL_PhoneNumber', 'BL_PropertyValue': 'BL_PropertyValue',
-        'BL_uuid_derived': 'BL_uuid_derived', 'fusion': 'fusion', 'propertyName': 'propertyName',
-        'rates_count': 'rates_count', 'trade_count': 'trade_count'
+        'BL_uuid_derived': 'BL_uuid_derived', 'fusion': 'fusion', 'property_name_1': 'property_name_1',
+        'rates_count': 'rates_count', 'trade_count': 'trade_count','property_name_2':'property_name_2',
+        'property_name_3':'property_name_3'
     }
 
 def _get_power_field_mapping():
@@ -144,3 +150,4 @@ def _get_dev_control_field_mapping():
         'JSON.applicant_name': 'applicant_name', 'JSON.land_zone_code': 'JSON.land_zone_code',
         'Longitude': 'Longitude', 'Latitude': 'Latitude', 'uuid': 'uuid'
     }
+"""

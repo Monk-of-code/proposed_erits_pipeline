@@ -24,7 +24,7 @@ def AddUUIDToCadastre(cadastre):
     cadastre_unique = cadastre.drop_duplicates(subset=["uuid"], keep="first")
     UtilDB.WriteToDB(
         cadastre_unique, "langata_cp_cadastral_parcel_uuid", "AddUUIDToCadastre", "")
-    return cadastre_unique
+    
 
 def _process_layer_with_uuid(cadastre, layer_name, output_table, function_name):
     gdf = UtilDB.readFromDB(schema_name, layer_name)

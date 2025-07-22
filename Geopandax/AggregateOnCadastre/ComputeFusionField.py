@@ -25,7 +25,7 @@ def AddMeasureFusionField():
 
         logger.info("Loading cadastre data...")
         gdf_cadastre = UtilDB.readFromDB(
-            f"{schema_name}", "langata_cp_power_water_bld_permit_address_uuid")
+            f"{schema_name}", "langata_cp_power_water_bld_permits_address_agg_uuid")
 
         # Initialize fusion field (keeping your original logic)
         gdf_cadastre["fusion"] = 0
@@ -53,11 +53,13 @@ def AddMeasureFusionField():
 
         logger.info(f'Processed {gdf_cadastre.shape[0]} parcels with fusion scores')
         logger.info(f"Fusion score range: {gdf_cadastre['fusion'].min()} to {gdf_cadastre['fusion'].max()}")
+        
+        gdf_cadastre = gdf_cadastre.drop_duplicates(subset=["uuid"])
 
         # Write to DB (maintaining your original parameters)
         UtilDB.WriteToDB(
             gdf_cadastre, 
-            "langata_cp_power_water_bld_permit_address_uuid", 
+            "langata_cp_power_water_bld_permits_address_agg_uuid", 
             "AddMeasureFusionField", 
             ""
         )

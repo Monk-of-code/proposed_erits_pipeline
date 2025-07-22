@@ -20,3 +20,12 @@ venv/
 airflow.db
 logs/
 *.pid
+
+#parquet files
+data/cadastre.parquet
+data/g_selected.parquet
+data/test.txt
+data/cadastreUUID.parquet
+
+#obsolete dag
+erits-v2.py
