@@ -22,10 +22,9 @@ logs/
 *.pid
 
 #parquet files
-data/cadastre.parquet
-data/g_selected.parquet
-data/test.txt
-data/cadastreUUID.parquet
+/data/erits-pipeline/data/test.txt
+data/*.parquet
 
 #obsolete dag
-erits-v2.py
+Geopandax/airflow/dags/erit-v2.py
+
