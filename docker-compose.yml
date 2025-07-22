@@ -24,8 +24,6 @@ x-airflow-common:
     - /data/erits-pipeline:/opt/airflow/erits-pipeline
     - /data/erits-pipeline/data:/opt/airflow/data
     - /data/erits-pipeline/Geopandax/airflow/dags:/opt/airflow/dags/erits_dags
-    - /data/repos/weather_data_project/airflow/dags:/opt/airflow/dags/weather_dags
-    - /data/repos/weather_data_project/api_requests:/opt/airflow/api_requests
     - /var/run/docker.sock:/var/run/docker.sock
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
