@@ -66,9 +66,6 @@ def JoinFieldsToCadastre(gdf_cadastre):
 
     gdf_joined = gdf_cadastre.merge(gdf_attributes, on="uuid", how="left")
 
-    # Detect and drop duplicate columns (e.g. from merge with same names)
-    gdf_joined = gdf_joined.loc[:, ~gdf_joined.columns.duplicated()]
-
     gdf_joined_deep = gdf_joined.copy(deep=True)
 
     gdf_joined_deep.rename(columns={
@@ -85,6 +82,12 @@ def JoinFieldsToCadastre(gdf_cadastre):
     }, inplace=True)
 
     gdf_joined_deep['owner'] = ""
+
+    duplicate_cols = gdf_joined_deep.columns[gdf_joined_deep.columns.duplicated()].tolist()
+    if duplicate_cols:
+     print(f" Duplicate columns detected before writing to DB: {duplicate_cols}")
+     gdf_joined_deep = gdf_joined_deep.loc[:, ~gdf_joined_deep.columns.duplicated()]
+
     UtilDB.WriteToDB(gdf_joined_deep, "langata_cp_power_water_bld_permits_address_agg_uuid", "JoinFieldsToCadastre", "")
     print(f'Cadastre count AFTER JoinFieldsToCadastre: {gdf_joined_deep.shape[0]}')
 
