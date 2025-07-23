@@ -199,7 +199,7 @@ with DAG(
         generate_uuid_group >> write_uuid
 # Continue flow
         # Only define the DAG structure once and cleanly:
-        prep_group >> generate_uuid_group >> [link_uuid_group, address_uuid_group] >> agg_group >> join_group
+        prep_group >> write_cadastre >> generate_uuid_group >>write_uuid>>[link_uuid_group, address_uuid_group] >> agg_group >> join_group
         join_group >> interest_group >> post_group >> move_group
 
 
