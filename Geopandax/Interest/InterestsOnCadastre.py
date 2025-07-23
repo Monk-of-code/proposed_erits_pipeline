@@ -65,6 +65,10 @@ def JoinFieldsToCadastre(gdf_cadastre):
     gdf_attributes['uuid'] = gdf_attributes['uuid_derived']
 
     gdf_joined = gdf_cadastre.merge(gdf_attributes, on="uuid", how="left")
+
+    # Detect and drop duplicate columns (e.g. from merge with same names)
+    gdf_joined = gdf_joined.loc[:, ~gdf_joined.columns.duplicated()]
+
     gdf_joined_deep = gdf_joined.copy(deep=True)
 
     gdf_joined_deep.rename(columns={
