@@ -5,6 +5,7 @@ __pycache__/
 *.log
 
 # Environments
+.env
 .venv/
 venv/
 .env.secrets
@@ -27,3 +28,4 @@ data/*.parquet
 #obsolete dag
 Geopandax/airflow/dags/erit-v2.py
 
+.env
