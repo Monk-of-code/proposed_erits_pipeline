@@ -19,6 +19,7 @@ logger.setLevel(logging.INFO)
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env.secrets')
 
 # SQLAlchemy Base
 Base = declarative_base()
