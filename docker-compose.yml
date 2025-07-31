@@ -4,8 +4,8 @@ x-airflow-common:
     context: .
     dockerfile: Dockerfile
   env_file: 
-    - /data/erits-pipeline/.env
-    - /data/erits-pipeline/.env.secrets
+    - .env
+    - .env.secrets
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -18,12 +18,23 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     PYTHONPATH: /opt/airflow/erits-pipeline
     JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-    AIRFLOW_CONN_POSTGRES_ERITS: "postgres://postgres:6390@192.168.100.26:5433/erits"
-  
+    
+
+    # Uncomment the following lines to enable email notifications
+
+    #AIRFLOW__EMAIL__EMAIL_BACKEND=airflow.utils.email.send_email_smtp
+    #AIRFLOW__SMTP__SMTP_STARTTLS: 'true'
+    #AIRFLOW__SMTP__SMTP_SSL: 'false'
+    #AIRFLOW__SMTP__SMTP_HOST: ${SMTP_HOST}
+    #AIRFLOW__SMTP__SMTP_PORT: ${SMTP_PORT}
+    #AIRFLOW__SMTP__SMTP_USER: ${SMTP_USER}
+    #AIRFLOW__SMTP__SMTP_PASSWORD: ${SMTP_PASSWORD}
+    #AIRFLOW__SMTP__SMTP_MAIL_FROM: ${SMTP_USER}
+
   volumes:
-    - /data/erits-pipeline:/opt/airflow/erits-pipeline
-    - /data/erits-pipeline/data:/opt/airflow/data
-    - /data/erits-pipeline/Geopandax/airflow/dags:/opt/airflow/dags/erits_dags
+    - ${AIRFLOW_PROJ_DIR:-.}:/opt/airflow/erits-pipeline
+    - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - ${AIRFLOW_PROJ_DIR:-.}/Geopandax/airflow/dags:/opt/airflow/dags/erits_dags
     - /var/run/docker.sock:/var/run/docker.sock
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
@@ -126,8 +137,8 @@ services:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD}
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
