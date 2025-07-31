@@ -5,7 +5,6 @@ x-airflow-common:
     dockerfile: Dockerfile
   env_file: 
     - .env
-    - .env.secrets
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -18,7 +17,7 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     PYTHONPATH: /opt/airflow/erits-pipeline
     JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-    
+  
 
     # Uncomment the following lines to enable email notifications
 
