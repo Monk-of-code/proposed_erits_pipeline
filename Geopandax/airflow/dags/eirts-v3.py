@@ -121,7 +121,7 @@ with DAG(
         "retries": 2,
         "retry_delay": timedelta(minutes=5),
     },
-    schedule_interval=None,
+    schedule_interval="*/30 * * * *",
     catchup=False,
     tags=["erits", "geospatial"],
     doc_md="""### ERITS Geospatial Pipeline\nProcesses subcounty features, utilities, cadastre, buildings."""
