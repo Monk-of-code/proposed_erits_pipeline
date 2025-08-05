@@ -91,7 +91,7 @@ def loadCadastreuuidToParquet():
         cadastreUUID.to_parquet(f"{parquet_dir}/cadastreUUID.parquet")
     except Exception as e:
         raise AirflowException(f"Failed to write cadastreUUID parquet: {str(e)}")
-    
+
 def loadlangataaggjoined():
     try:
         ensure_parquet_dir()
@@ -99,7 +99,7 @@ def loadlangataaggjoined():
         cadastre=UtilDB.readFromDB(schema_name,"langata_cp_power_water_bld_permits_address_agg_uuid")
         return cadastre
     except Exception as e:
-        raise AirflowException(f"Failed to read langata_cp_power_water_bld_permits_address_agg_uuid: {str(e)}")    
+        raise AirflowException(f"Failed to read langata_cp_power_water_bld_permits_address_agg_uuid: {str(e)}")
 
 def load_cadastre():
     return gpd.read_parquet(f"{parquet_dir}/cadastre.parquet")
@@ -132,13 +132,13 @@ with DAG(
 
     with TaskGroup("parquet_handling") as parquet_group:
         pass
-    
+
         write_cadastre = PythonOperator(task_id="write_cadastre_parquet", python_callable=loadCadastreToParquet,dag=dag)
         write_uuid = PythonOperator(task_id="write_cadastreUUID_parquet", python_callable=loadCadastreuuidToParquet,dag=dag)
         #  Manually assign tasks to the TaskGroup for UI grouping
         write_cadastre.task_group = parquet_group
         write_uuid.task_group = parquet_group
-        
+
 
     with TaskGroup("data_preparation") as prep_group:
         PythonOperator(task_id="cadastre", python_callable=lambda: CadastrePrep.Cadastre(load_selected()))
@@ -178,8 +178,8 @@ with DAG(
         potential_interest_to_cadastre_task=PythonOperator(task_id="potential_interest_to_cadastre", python_callable=lambda:PotentialInterestToCadastre(loadlangataaggjoined()))
         aggregate_land_rates_task=PythonOperator(task_id="aggregate_landrates", python_callable=lambda:AggregateLandRates(loadlangataaggjoined()))
         aggregate_trade_licence_task=PythonOperator(task_id="aggregate_trade_license", python_callable=lambda:AggregateTradeLicense(loadlangataaggjoined()))
-        
-        potential_interest_to_cadastre_task >> aggregate_land_rates_task >> aggregate_trade_licence_task >> join_field_task 
+
+        potential_interest_to_cadastre_task >> aggregate_land_rates_task >> aggregate_trade_licence_task >> join_field_task
     with TaskGroup("postprocessing") as post_group:
         PythonOperator(task_id="drop_duplicates", python_callable=lambda:CadastreDropDuplicates(loadlangataaggjoined())) >> \
         PythonOperator(task_id="clear_unwanted_rows", python_callable=lambda:DropNonRequiredFields(loadlangataaggjoined()))
@@ -204,7 +204,7 @@ with DAG(
         join_group >> interest_group >> post_group >> move_group
 
 
-    
+
 
     for task in dag.tasks:
         task.on_failure_callback = failure_callback
