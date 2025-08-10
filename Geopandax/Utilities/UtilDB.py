@@ -8,6 +8,11 @@ from sqlalchemy import create_engine, MetaData, Table, delete
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 
+from Geopandax.Utilities.UtilDB import create_db_engine, get_db_config
+from sqlalchemy import inspect, text
+import pandas as pd
+
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.future import select
 from dotenv import load_dotenv
@@ -42,18 +47,6 @@ def create_db_engine(async_=False):
     return create_engine(
         f"{prefix}://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
     )
-
-
-#def WriteToDB(dataFrame, outputTable, functionName, toPostGISOption):
-    engine = create_db_engine()
-    schema = get_db_config()['silver_schema']
-    if_exists = 'append' if toPostGISOption else 'replace'
-    dataFrame.to_postgis(name=outputTable, schema=schema, con=engine, if_exists=if_exists)
-    print(f'{outputTable} ({functionName}) Records written to DB: {dataFrame.shape[0]}')
-
-from Geopandax.Utilities.UtilDB import create_db_engine, get_db_config
-from sqlalchemy import inspect, text
-import pandas as pd
 
 def WriteToDB(dataFrame, outputTable, functionName, toPostGISOption):
     engine = create_db_engine()
