@@ -18,7 +18,6 @@ from pathlib import Path
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(dotenv_path=BASE_DIR / '.env')
-load_dotenv(BASE_DIR / '.env.secrets')
 
 # Config
 use_spark = os.getenv("USE_SPARK") == "1"
@@ -121,7 +120,7 @@ with DAG(
         "retries": 2,
         "retry_delay": timedelta(minutes=5),
     },
-    schedule_interval="*0 */3 * * *",
+    schedule_interval="0 */3 * * *",
     catchup=False,
     tags=["erits", "geospatial"],
     doc_md="""### ERITS Geospatial Pipeline\nProcesses subcounty features, utilities, cadastre, buildings."""
