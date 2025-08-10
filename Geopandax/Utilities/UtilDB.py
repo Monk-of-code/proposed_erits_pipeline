@@ -8,7 +8,6 @@ from sqlalchemy import create_engine, MetaData, Table, delete
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 
-from Geopandax.Utilities.UtilDB import create_db_engine, get_db_config
 from sqlalchemy import inspect, text
 import pandas as pd
 
